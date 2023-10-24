@@ -63,14 +63,14 @@ void do_bgfg(char **argv);         // Implements the `bg` and `fg` built-in comm
 void waitfg(pid_t pid);            // Waits for a foreground job to complete. [20 lines] FIXME: TODO
 
 void sigchld_handler(int sig);     // Catches SIGCHILD signals. [80 lines] FIXME: TODO
-void sigtstp_handler(int sig);     // Catches SIGINT (ctrl-c) signals. [15 lines] FIXME: TODO
-void sigint_handler(int sig);      // Catches SIGTSTP (ctrl-z) signals. [15 lines] FIXME: TODO
+void sigtstp_handler(int sig);     // Catches SIGTSTP (ctrl-z) signals. [15 lines] FIXME: TODO
+void sigint_handler(int sig);      // Catches SIGINT (ctrl-c) signals. [15 lines] FIXME: TODO
 /* FIXME: Confirm that all the functions above have been implemented successfully and pass all the test cases */
 
 
 /* Here are helper routines that we've provided for you */
 int parseline(const char *cmdline, char **argv);                        // Parse the command line and build the argv array.
-void sigquit_handler(int sig);                                          // The driver program can gracefully terminate the
+void sigquit_handler(int sig);                                          // The driver program can gracefully terminate the program
 
 void clearjob(struct job_t *job);                                       // Clear the entries in a job struct
 void initjobs(struct job_t *jobs);                                      // initjobs - Initialize the job list
@@ -168,9 +168,39 @@ int main(int argc, char **argv)
  * background children don't receive SIGINT (SIGTSTP) from the kernel
  * when we type ctrl-c (ctrl-z) at the keyboard.
 */
-void eval(char *cmdline) 
+void eval(char* cmdline) 
 {
-    return;
+    // will store the vector containing the different parts of
+    // the argument vector.
+    char* argv[MAXARGS];
+
+    // Takes cmdline and separates it into different lines in argv.
+    if (parseline(cmdline, argv)) { // Background job
+        // FIXME: Not sure what to do for this part yet, will just return for now
+        return; 
+    }
+
+    char* command = argv[0];
+
+    // Only execute our command as a separate process if it's not a built-in command,
+    // otherwise it will be immediately executed within builtin_cmd.
+    if (!builtin_cmd(argv)) { 
+
+        // At this point, we know no built-in commands were called.
+        // We must fork() into a child and execute the program there.
+        int fork_ret = fork();
+        if (fork_ret == 0) { // Currently in child
+            // We execute our desired program
+            printf("Hello from child\n");
+            execve(command, argv, NULL);
+            return;
+        }
+        else { // Currently in parent
+            printf("Hello from parent\n");
+            waitfg(fork_ret); // wait until child finishes the foreground job.
+            return; // do nothing after this, job is finished!
+        }
+    }
 }
 
 /* 
@@ -196,37 +226,41 @@ int parseline(const char *cmdline, char **argv)
     /* Build the argv list */
     argc = 0;
     if (*buf == '\'') {
-	buf++;
-	delim = strchr(buf, '\'');
+        buf++;
+        delim = strchr(buf, '\'');
     }
     else {
-	delim = strchr(buf, ' ');
+	    delim = strchr(buf, ' ');
     }
 
     while (delim) {
-	argv[argc++] = buf;
-	*delim = '\0';
-	buf = delim + 1;
-	while (*buf && (*buf == ' ')) /* ignore spaces */
-	       buf++;
+        argv[argc++] = buf;
+        *delim = '\0';
+        buf = delim + 1;
+        while (*buf && (*buf == ' ')) {/* ignore spaces */
+            buf++;
+        }
 
-	if (*buf == '\'') {
-	    buf++;
-	    delim = strchr(buf, '\'');
-	}
-	else {
-	    delim = strchr(buf, ' ');
-	}
+        if (*buf == '\'') {
+            buf++;
+            delim = strchr(buf, '\'');
+        }
+        else {
+            delim = strchr(buf, ' ');
+        }
+
     }
     argv[argc] = NULL;
     
-    if (argc == 0)  /* ignore blank line */
-	return 1;
+    if (argc == 0) { /* ignore blank line */
+	    return 1;
+    }
 
     /* should the job run in the background? */
     if ((bg = (*argv[argc-1] == '&')) != 0) {
-	argv[--argc] = NULL;
+	    argv[--argc] = NULL;
     }
+
     return bg;
 }
 
@@ -236,6 +270,29 @@ int parseline(const char *cmdline, char **argv)
  */
 int builtin_cmd(char **argv) 
 {
+
+    // Stores the specific command we just ran
+    char* command = argv[0];
+
+    // Here we check all four built-in commands:
+    // quit, jobs, bg, fg. I put bg and fg at the end
+    // because those go hand in hand
+    if (!strcmp(command, "quit")) {
+        exit(1);
+        return 1;
+    }
+    else if (!strcmp(command, "jobs")) {
+        return 1;
+    }
+    else if (!strcmp(command, "bg")) {
+        do_bgfg(argv);
+        return 1;
+    }
+    else if (!strcmp(command, "fg")) {
+        do_bgfg(argv);
+        return 1;   
+    }
+
     return 0;     /* not a builtin command */
 }
 
@@ -244,6 +301,7 @@ int builtin_cmd(char **argv)
  */
 void do_bgfg(char **argv) 
 {
+    printf("TODO: Executing do_bgfg\n");
     return;
 }
 
@@ -251,8 +309,10 @@ void do_bgfg(char **argv)
  * waitfg - Block until process pid is no longer the foreground process
  */
 void waitfg(pid_t pid)
-{
+{   
+
     return;
+    
 }
 
 /*****************
@@ -267,18 +327,55 @@ void waitfg(pid_t pid)
  *     currently running children to terminate.  
  */
 void sigchld_handler(int sig) 
-{
-    return;
+{ // FIXME: TODO
+
+    // Saves the PID of the current foreground process
+    pid_t foreground_pid = fgpid(jobs);
+
+    // fgpid returns 0 when there are no foreground processes
+    if (foreground_pid == 0) {
+        return; // do nothing, signal has no effect when
+        // there are no foreground processes
+    }
+
+    // Calls the kill function with pid = foreground_process_pid,
+    // and signal = sig because sig already contains SIGINT.
+    waitpid(foreground_pid, NULL, WUNTRACED);
+
+    // After killing the foreground process we need to reap zombie processes
+    for (int i = 0; i < MAXJOBS; i++) {
+        if (jobs[i].state == ST) { // job is currently stopped, meaning zombie
+            clearjob(&jobs[i]);
+        }
+    }
 }
 
 /* 
- * sigint_handler - The kernel sends a SIGINT to the shell whenver the
+ * sigint_handler - The kernel sends a SIGINT to the shell whenever the
  *    user types ctrl-c at the keyboard.  Catch it and send it along
  *    to the foreground job.  
  */
 void sigint_handler(int sig) 
 {
-    return;
+    // Saves the PID of the current foreground process
+    pid_t foreground_pid = fgpid(jobs);
+
+    // fgpid returns 0 when there are no foreground processes
+    if (foreground_pid == 0) {
+        return; // do nothing, signal has no effect when
+        // there are no foreground processes
+    }
+
+    // Calls the kill function with pid = foreground_process_pid,
+    // and signal = sig because sig already contains SIGINT.
+    kill(-foreground_pid, sig);
+
+    // After killing the foreground process we need to reap zombie processes
+    for (int i = 0; i < MAXJOBS; i++) {
+        if (jobs[i].state == ST) { // job is currently stopped, meaning zombie
+            clearjob(&jobs[i]);
+        }
+    }
 }
 
 /*
@@ -288,7 +385,25 @@ void sigint_handler(int sig)
  */
 void sigtstp_handler(int sig) 
 {
-    return;
+    // Saves the PID of the current foreground process
+    pid_t foreground_pid = fgpid(jobs);
+
+    // fgpid returns 0 when there are no foreground processes
+    if (foreground_pid == 0) {
+        return; // do nothing, signal has no effect when
+        // there are no foreground processes
+    }
+
+    // Calls the kill function with pid = foreground_process_pid,
+    // and signal = sig because sig already contains SIGINT.
+    kill(-foreground_pid, sig);
+
+    // After killing the foreground process we need to reap zombie processes
+    for (int i = 0; i < MAXJOBS; i++) {
+        if (jobs[i].state == ST) { // job is currently stopped, meaning zombie
+            clearjob(&jobs[i]);
+        }
+    }
 }
 
 /*********************
@@ -311,8 +426,9 @@ void clearjob(struct job_t *job) {
 void initjobs(struct job_t *jobs) {
     int i;
 
-    for (i = 0; i < MAXJOBS; i++)
-	clearjob(&jobs[i]);
+    for (i = 0; i < MAXJOBS; i++) {
+	    clearjob(&jobs[i]);
+    }
 }
 
 /* maxjid - Returns largest allocated job ID */
@@ -321,8 +437,9 @@ int maxjid(struct job_t *jobs)
     int i, max=0;
 
     for (i = 0; i < MAXJOBS; i++)
-	if (jobs[i].jid > max)
+	if (jobs[i].jid > max) {
 	    max = jobs[i].jid;
+    }
     return max;
 }
 
@@ -335,18 +452,18 @@ int addjob(struct job_t *jobs, pid_t pid, int state, char *cmdline)
 	return 0;
 
     for (i = 0; i < MAXJOBS; i++) {
-	if (jobs[i].pid == 0) {
-	    jobs[i].pid = pid;
-	    jobs[i].state = state;
-	    jobs[i].jid = nextjid++;
-	    if (nextjid > MAXJOBS)
-		nextjid = 1;
-	    strcpy(jobs[i].cmdline, cmdline);
-  	    if(verbose){
-	        printf("Added job [%d] %d %s\n", jobs[i].jid, jobs[i].pid, jobs[i].cmdline);
-            }
-            return 1;
-	}
+        if (jobs[i].pid == 0) {
+            jobs[i].pid = pid;
+            jobs[i].state = state;
+            jobs[i].jid = nextjid++;
+            if (nextjid > MAXJOBS)
+            nextjid = 1;
+            strcpy(jobs[i].cmdline, cmdline);
+            if(verbose){
+                printf("Added job [%d] %d %s\n", jobs[i].jid, jobs[i].pid, jobs[i].cmdline);
+                }
+                return 1;
+        }
     }
     printf("Tried to create too many jobs\n");
     return 0;
@@ -361,11 +478,11 @@ int deletejob(struct job_t *jobs, pid_t pid)
 	return 0;
 
     for (i = 0; i < MAXJOBS; i++) {
-	if (jobs[i].pid == pid) {
-	    clearjob(&jobs[i]);
-	    nextjid = maxjid(jobs)+1;
-	    return 1;
-	}
+        if (jobs[i].pid == pid) {
+            clearjob(&jobs[i]);
+            nextjid = maxjid(jobs)+1;
+            return 1;
+        }
     }
     return 0;
 }
@@ -377,6 +494,7 @@ pid_t fgpid(struct job_t *jobs) {
     for (i = 0; i < MAXJOBS; i++)
 	if (jobs[i].state == FG)
 	    return jobs[i].pid;
+
     return 0;
 }
 
@@ -490,7 +608,7 @@ void app_error(char *msg)
 handler_t *Signal(int signum, handler_t *handler) 
 {
     struct sigaction action, old_action;
-
+ 
     action.sa_handler = handler;  
     sigemptyset(&action.sa_mask); /* block sigs of type being handled */
     action.sa_flags = SA_RESTART; /* restart syscalls if possible */
