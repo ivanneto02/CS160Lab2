@@ -93,8 +93,6 @@ handler_t *Signal(int signum, handler_t *handler);                      // wrapp
  */
 int main(int argc, char **argv) 
 {
-    // printf("main called\n");
-
     char c;
     char cmdline[MAXLINE];
     int emit_prompt = 1; /* emit prompt (default) */
@@ -172,8 +170,6 @@ int main(int argc, char **argv)
 void eval(char* cmdline) 
 {
 
-    // printf("eval called\n");
-
     // will store the vector containing the different parts of
     // the argument vector.
     char* argv[MAXARGS];
@@ -184,8 +180,6 @@ void eval(char* cmdline)
     // parseline returns whether we want to run in the backgruond.
     // That's what bg_flag is for.
     int bg_flag = parseline(cmdline, argv);
-
-    // printf("bg_flag: %d\n", bg_flag);
 
     // Holds either NULL or the command itself
     char* command = argv[0];
@@ -230,7 +224,6 @@ void eval(char* cmdline)
 
         // At this point, we know no built-in commands were called.
         // We must fork() into a child and execute the program there.
-        // printf("Forking\n");
         int fork_pid = fork();
 
         // In the case that fork fails
@@ -240,8 +233,6 @@ void eval(char* cmdline)
 
         // This will check whether we are in child
         if (fork_pid == 0) { // Currently in child
-
-            // printf("Hello from child\n");
 
             // Unblock the signals since we are now in child!
             // Thus we ARE allowed to call the signals
@@ -267,8 +258,6 @@ void eval(char* cmdline)
 
         // Checks if we are currently in parent
         else { // Currently in parent
-
-            // printf("Hello from parent\n");
 
             // We must add the foreground job to the job list and set its status as FG or BG
             addjob(jobs, fork_pid, (bg_flag ? BG : FG), cmdline);
@@ -386,8 +375,6 @@ int builtin_cmd(char **argv)
 void do_bgfg(char **argv) 
 {
 
-    // printf("do_bgfg called\n");
-
     // background flag, tracks whether do_bgfg should do
     // bg or fg.
     int bg = 0;
@@ -434,22 +421,14 @@ void do_bgfg(char **argv)
     // Decides whether to grab jid or pid, methods are different
     if (job_flag) {
         jid = atoi(&argv[1][1]); // Grabs from argv[1][1] to the end of the number.
-        // printf("jid: %d", jid);
-        // printf("test1\n");
-        // pid = getjobjid(jobs, jid)->pid;
-        // printf("test2\n");
     }
     else {
         pid = atoi(argv[1]); // Grabs only argv[1] because we assume that is a number.
-        // printf("pid: %d", pid);
-        // jid = pid2jid(pid);
     }
 
     // We need to find the pid structure so we can
     // change its state
     struct job_t* job;
-
-    // printf("test\n");
 
     // Decides whether to grab from jid or pid
     if (job_flag) {
@@ -458,9 +437,6 @@ void do_bgfg(char **argv)
     else {
         job = getjobpid(jobs, pid); // get the job given pid
     }
-
-    // printf("test1\n");
-
 
     // The job we are being requested does not exist
     if (!job && (job_flag)) {
@@ -472,15 +448,11 @@ void do_bgfg(char **argv)
         return;
     }
 
-    // printf("test2\n");
-
     // change the state of the curr_job
     if (bg) {
-        // printf("Changing %s %d to background\n", (job_flag ? "job" : "process"), (job_flag ? jid : pid));
         job->state = BG;
     }
     else {
-        // printf("Changing %s %d to foreground\n", (job_flag ? "job" : "process"), (job_flag ? jid : pid));
         job->state = FG;
     }
     
@@ -512,7 +484,6 @@ void do_bgfg(char **argv)
  */
 void waitfg(pid_t pid)
 {
-    // printf("waitfg called\n");
 
     // Grab the job identified by pid
     struct job_t* job = getjobpid(jobs, pid);
@@ -548,9 +519,11 @@ void waitfg(pid_t pid)
  *     currently running children to terminate.  
  */
 void sigchld_handler(int sig) 
-{ // FIXME: TODO
-    
-    // printf("calling sigchld_handler\n");
+{
+
+    if (verbose) {
+        printf("sigchld_handler: entering\n");
+    }
 
     pid_t c_pid; // stores pid for child
     int c_jid; // stores jid for child
@@ -568,8 +541,6 @@ void sigchld_handler(int sig)
     // The while loop does this multiple times, untill all zombie children
     // are reaped.
     while ( (c_pid = waitpid(-1, &status, WNOHANG|WUNTRACED) ) > 0) {
-
-        // printf("Into the while loop\n");
 
         struct job_t* job;
 
@@ -608,6 +579,10 @@ void sigchld_handler(int sig)
                 return;
             }
 
+            if (verbose) {
+                printf("sigchld_handler: Job [%d] (%d) deleted\n", c_jid, c_pid);
+            }
+
             // Here we know that deletejob succeeded, thus we print out information for the user
             // about which [jid], and (pid) was terminated by the termination signal identified by
             // status variable that we got from the while loop waitpid.
@@ -630,6 +605,14 @@ void sigchld_handler(int sig)
                 return;
             }
 
+            if (verbose) {
+                printf("sigchld_handler: Job [%d] (%d) deleted\n", c_jid, c_pid);
+            }
+
+            if (verbose) {
+                printf("sigchld_handler: Job [%d] (%d) terminates OK (status %d)\n", c_jid, c_pid, WEXITSTATUS(status));
+            }
+
             // Since no signal was sent to stop the process, we don't want to print
             // a status message to the user just because. Thus we don't print anything here.
         }
@@ -638,13 +621,16 @@ void sigchld_handler(int sig)
         }
 
     } // Terminate the while loop because there were no children or there were no zombie children
-    // printf("Exiting while loop\n");
     
     // Here there's the possibility that there are children but my SIGCHLD handler failed to do its job
     // so I want to print an error message
 
     if (!((c_pid == 0) || (c_pid == -1 && errno == ECHILD))) {
         unix_error("sigchld_handler wait error");
+    }
+
+    if (verbose) {
+        printf("sigchld_handler: exiting\n");
     }
 }
 
@@ -656,7 +642,9 @@ void sigchld_handler(int sig)
 void sigint_handler(int sig) 
 {
 
-    // printf("calling sigint_handler\n");
+    if (verbose) {
+        printf("sigint_handler: entering\n");
+    }
 
     // Saves the PID of the current foreground process
     pid_t foreground_pid = fgpid(jobs);
@@ -671,14 +659,16 @@ void sigint_handler(int sig)
     // and signal = sig because sig already contains SIGINT.
     if (kill(-foreground_pid, SIGINT) < 0) {
         unix_error("kill (sigint) error");
-    } 
+    }
 
-    // After killing the foreground process we need to set it to zombie
-    // for (int i = 0; i < MAXJOBS; i++) {
-    //     if (jobs[i].state == ST) { // job is currently stopped, meaning zombie
-    //         clearjob(&jobs[i]);
-    //     }
-    // }
+    if (verbose) {
+        printf("sigint_handler: Job (%d) killed\n", foreground_pid);
+    }
+
+    if (verbose) {
+        printf("sigint_handler: exiting\n");
+    }
+
 }
 
 /*
@@ -689,7 +679,9 @@ void sigint_handler(int sig)
 void sigtstp_handler(int sig) 
 {
 
-    // printf("calling sigtstp_handler\n");
+    if (verbose) {
+        printf("sigstp_handler: entering\n");
+    }
 
     // Saves the PID of the current foreground process
     pid_t foreground_pid = fgpid(jobs);
@@ -706,12 +698,14 @@ void sigtstp_handler(int sig)
         unix_error("kill (tstp) error");
     }
 
-    // After killing the foreground process we need to set it to zombie
-    // for (int i = 0; i < MAXJOBS; i++) {
-    //     if (jobs[i].state == ST) { // job is currently stopped, meaning zombie
-    //         clearjob(&jobs[i]);
-    //     }
-    // }
+    if (verbose) {
+        printf("sigtstp_handler: Job [%d] (%d) stopped\n", pid2jid(foreground_pid), foreground_pid);
+    }
+
+    if (verbose) {
+        printf("sigstp_handler: entering\n");
+    }
+
 }
 
 /*********************
