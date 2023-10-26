@@ -1,3 +1,6 @@
+#ifndef TRACE_COMMANDS
+#define TRACE_COMMANDS
+
 #include <iostream>
 #include <string>
 
@@ -8,9 +11,9 @@ traceFile: exact file name for the trace we need
 */
 std::string trace_command(const std::string& traceFile) {
     std::string command = "";
-    command += "./sources/sdriver.pl -t ./sources/"
+    command += "./sdriver.pl -t "
             + traceFile
-            + " -s ./sources/tsh -a \"-p\"";
+            + " -s ./tsh -a \"-p\"";
     return command;
 }
 
@@ -21,8 +24,10 @@ traceFile: exact file name for the trace we need
 */
 std::string rtrace_command(const std::string& traceFile) {
     std::string command = "";
-    command += "./sources/sdriver.pl -t ./sources/"
+    command += "./sdriver.pl -t "
             + traceFile
-            + " -s ./sources/tshref -a \"-p\"";
+            + " -s ./tshref -a \"-p\"";
     return command;
 }
+
+#endif

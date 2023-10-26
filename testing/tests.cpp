@@ -3,6 +3,7 @@
 
 #include <gtest/gtest.h>
 
+#include "test_string_eq_helper.hpp"
 #include "test_trace_equivalence.hpp"
 
 int main(int argc, char** argv) {

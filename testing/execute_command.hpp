@@ -1,3 +1,5 @@
+#ifndef EXECUTE_COMMANDS
+#define EXECUTE_COMMANDS
 
 #include <cstdio>
 #include <iostream>
@@ -25,3 +27,5 @@ std::string exec(const char* cmd) {
     // return the entirety of the output of running a command
     return result;
 }
+
+#endif
