@@ -54,17 +54,15 @@ struct job_t jobs[MAXJOBS]; /* The job list */
 
 /* Function prototypes */
 
-/* FIXME: Confirm that all the functions below have been implemented successfully and pass all the test cases */
 /* Here are the functions that you will implement */
-void eval(char *cmdline);          // Main routine that parses and interprets the command line. [70 lines] FIXME: TODO
-int builtin_cmd(char **argv);      // Recognizes and interprets the built-in commands: `quit`, `fg`, `bg`, and `jobs` [25 lines] FIXME: TODO 
-void do_bgfg(char **argv);         // Implements the `bg` and `fg` built-in commands [50 lines] FIXME: TODO
-void waitfg(pid_t pid);            // Waits for a foreground job to complete. [20 lines] FIXME: TODO
+void eval(char *cmdline);          // Main routine that parses and interprets the command line. [70 lines]
+int builtin_cmd(char **argv);      // Recognizes and interprets the built-in commands: `quit`, `fg`, `bg`, and `jobs` [25 lines]
+void do_bgfg(char **argv);         // Implements the `bg` and `fg` built-in commands [50 lines]
+void waitfg(pid_t pid);            // Waits for a foreground job to complete. [20 lines]
 
-void sigchld_handler(int sig);     // Catches SIGCHILD signals. [80 lines] FIXME: TODO
-void sigtstp_handler(int sig);     // Catches SIGTSTP (ctrl-z) signals. [15 lines] FIXME: TODO
-void sigint_handler(int sig);      // Catches SIGINT (ctrl-c) signals. [15 lines] FIXME: TODO
-/* FIXME: Confirm that all the functions above have been implemented successfully and pass all the test cases */
+void sigchld_handler(int sig);     // Catches SIGCHILD signals. [80 lines]
+void sigtstp_handler(int sig);     // Catches SIGTSTP (ctrl-z) signals. [15 lines]
+void sigint_handler(int sig);      // Catches SIGINT (ctrl-c) signals. [15 lines]
 
 
 /* Here are helper routines that we've provided for you */

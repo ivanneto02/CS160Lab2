@@ -29,17 +29,12 @@ TEST(TraceTests, Trace02) {
     std::string result  = exec(trace_command("trace02.txt").c_str());
     std::string rresult = exec(rtrace_command("trace02.txt").c_str());
 
-    // FIXME: Remove once this testcase is over.
-    // std::cout << result << std::endl;
-    // std::cout << rresult << std::endl;
-
     string_equalizer(result);
     string_equalizer(rresult);
 
     // Tests whether our reference output is the same
     // as our program output
     EXPECT_EQ(result, rresult);
-    // EXPECT_EQ(1, 2);
 }
 
 TEST(TraceTests, Trace03) {
